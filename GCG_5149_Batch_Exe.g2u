@@ -1,0 +1,219 @@
+Program.Sub.ScreenSU.Start
+Gui.BatchFilePath..Create
+Gui.BatchFilePath..Size(17115,2790)
+Gui.BatchFilePath..MinX(0)
+Gui.BatchFilePath..MinY(0)
+Gui.BatchFilePath..Position(0,0)
+Gui.BatchFilePath..BackColor(-2147483633)
+Gui.BatchFilePath..MousePointer(0)
+Gui.BatchFilePath..Event(UnLoad,BatchFilePath_UnLoad)
+Gui.BatchFilePath.txtBatch1.Create(TextBox,"",True,15810,300,0,240,585,True,0,"Arial",8,-2147483643,1)
+Gui.BatchFilePath.cmdBrowseBat1.Create(Button)
+Gui.BatchFilePath.cmdBrowseBat1.Size(600,375)
+Gui.BatchFilePath.cmdBrowseBat1.Position(16140,555)
+Gui.BatchFilePath.cmdBrowseBat1.Caption("^")
+Gui.BatchFilePath.cmdBrowseBat1.Event(Click,cmdBrowseBat1_Click)
+Gui.BatchFilePath.txtBatch2.Create(TextBox,"",True,15810,300,0,240,1335,True,0,"Arial",8,-2147483643,1)
+Gui.BatchFilePath.cmdBrowseBat2.Create(Button)
+Gui.BatchFilePath.cmdBrowseBat2.Size(600,375)
+Gui.BatchFilePath.cmdBrowseBat2.Position(16140,1305)
+Gui.BatchFilePath.cmdBrowseBat2.Caption("^")
+Gui.BatchFilePath.cmdBrowseBat2.Event(Click,cmdBrowseBat2_Click)
+Gui.BatchFilePath.lblBatch1.Create(Label,"Batch 1",True,1935,255,0,240,360,True,0,"Arial",8,-2147483633,0)
+Gui.BatchFilePath.lblBatch2.Create(Label,"Batch 2",True,1935,255,0,240,1125,True,0,"Arial",8,-2147483633,0)
+Gui.BatchFilePath.cmdSave.Create(Button)
+Gui.BatchFilePath.cmdSave.Size(855,375)
+Gui.BatchFilePath.cmdSave.Position(225,1875)
+Gui.BatchFilePath.cmdSave.Caption("Save")
+Gui.BatchFilePath.cmdSave.Event(Click,cmdSave_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'BN, June 26, 2018
+'Customer: Integrated Manufacturing Solutions
+'This project will execute a Batch, run the ORDUPL 1shot, then execute another Batch.
+'There is a maintenance section that store the 2 Batch file paths.  
+f.Intrinsic.Control.Try
+	v.Local.sError.Declare
+	
+	f.ODBC.Connection!conx.OpenCompanyConnection
+	
+	'Maitenance Batch Paths
+	f.Intrinsic.Control.If(v.Caller.Switches,=,"M")	
+		f.Intrinsic.Control.CallSub("Get_Batch_Path")
+		gui.BatchFilePath..Show
+		
+	'Excecute Batches and ORDUPL 1shot
+	f.Intrinsic.Control.ElseIf(v.Caller.Switches,=,"E")
+		f.Intrinsic.Control.CallSub("Process")			
+		f.Intrinsic.Control.CallSub("Unload")	
+	f.Intrinsic.Control.EndIf
+
+	
+F.Intrinsic.Control.Catch
+	Function.Intrinsic.String.Build("Subroutine Error {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.Get_Batch_Path.Start
+f.Intrinsic.Control.Try
+	v.Local..BulkDeclareString(sError,sRet)
+	
+	'Batch1
+	f.ODBC.Connection!conx.ExecuteAndReturn("Select Path from GCG_5149_Batch_Path Where Batch_num = 'Batch1'",v.Local.sRet)
+	f.Intrinsic.Control.If(v.Local.sRet,<>,"")
+		gui.BatchFilePath.txtBatch1.Text(v.Local.sRet)
+	f.Intrinsic.Control.EndIf
+	
+	'Batch2
+	f.ODBC.Connection!conx.ExecuteAndReturn("Select Path from GCG_5149_Batch_Path Where Batch_num = 'Batch2'",v.Local.sRet)
+	f.Intrinsic.Control.If(v.Local.sRet,<>,"")
+		gui.BatchFilePath.txtBatch2.Text(v.Local.sRet)
+	f.Intrinsic.Control.EndIf
+	
+F.Intrinsic.Control.Catch
+	Function.Intrinsic.String.Build("Subroutine Error {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+
+Program.Sub.Get_Batch_Path.End
+
+Program.Sub.Process.Start
+f.Intrinsic.Control.Try
+	v.Local..BulkDeclareString(sError,sRet,sParam)
+	v.Local.bExist.Declare
+
+	'Run Batch 1
+	f.ODBC.Connection!conx.ExecuteAndReturn("Select Path from GCG_5149_Batch_Path Where Batch_num = 'Batch1'",v.Local.sRet)
+	f.Intrinsic.Control.If(v.Local.sRet.Trim,=,"")
+		f.Intrinsic.UI.Msgbox("Batch 1 Path is not setup. Nothing processed.")
+		f.Intrinsic.Control.ExitSub
+	f.Intrinsic.Control.Else
+		f.Intrinsic.File.Exists(v.Local.sRet.Trim,v.Local.bExist)
+		f.Intrinsic.Control.If(v.Local.bExist.Not)
+			f.Intrinsic.UI.Msgbox("Batch 1 Path is not valid. Nothing processed.")
+			f.Intrinsic.Control.ExitSub
+		f.Intrinsic.Control.EndIf
+		f.Intrinsic.UI.InvokeWaitDialog("Running Batch 1")			
+		F.Intrinsic.Task.LaunchSync(v.Local.sRet)
+		f.Intrinsic.UI.CloseWaitDialog
+	f.Intrinsic.Control.EndIf
+	
+	'Run ORDUPL in 1SHOTGI (CallWrapper mode 51)
+	f.Intrinsic.UI.InvokeWaitDialog("Running ORDUPL...")
+	f.Intrinsic.String.Build("{0}!*!ORDUPL",v.Caller.CompanyCode,v.Local.sParam)
+	Function.Global.General.CallWrapperSync(51,v.Local.sParam)
+	f.Intrinsic.UI.CloseWaitDialog
+	
+	'Run Batch 1
+	f.ODBC.Connection!conx.ExecuteAndReturn("Select Path from GCG_5149_Batch_Path Where Batch_num = 'Batch2'",v.Local.sRet)
+	f.Intrinsic.Control.If(v.Local.sRet,=,"")
+		f.Intrinsic.UI.Msgbox("Batch 2 Path is not setup. Batch 1 and ORDUPL have been processed, but Batch 2 is not processed.")
+		f.Intrinsic.Control.ExitSub	
+	f.Intrinsic.Control.Else
+		f.Intrinsic.File.Exists(v.Local.sRet.Trim,v.Local.bExist)
+		f.Intrinsic.Control.If(v.Local.bExist.Not)
+			f.Intrinsic.UI.Msgbox("Batch 2 Path is not valid. Batch 1 and ORDUPL have been processed, but Batch 2 is not processed.")
+			f.Intrinsic.Control.ExitSub
+		f.Intrinsic.Control.EndIf
+		f.Intrinsic.UI.InvokeWaitDialog("Running Batch 2")
+		F.Intrinsic.Task.LaunchSync(v.Local.sRet)
+		f.Intrinsic.UI.CloseWaitDialog
+	f.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	Function.Intrinsic.String.Build("Subroutine Error {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+
+Program.Sub.Process.End
+
+Program.Sub.cmdSave_Click.Start
+f.Intrinsic.Control.Try
+	v.Local..BulkDeclareString(sError,sSQL,sRet)
+	
+	f.Intrinsic.UI.InvokeWaitDialog("Saving...")
+	
+	'Batch1
+	f.ODBC.Connection!conx.ExecuteAndReturn("Select * from GCG_5149_Batch_Path Where Batch_num = 'Batch1'",v.Local.sRet)
+	f.Intrinsic.Control.If(v.Local.sRet,=,"")
+		f.Intrinsic.String.Build("Insert into GCG_5149_Batch_Path values('Batch1','{0}')",v.Screen.BatchFilePath!txtBatch1.Text.Trim,v.Local.sSQl)
+		f.ODBC.Connection!conx.Execute(v.Local.sSQl)
+	f.Intrinsic.Control.Else
+		f.Intrinsic.String.Build("Update GCG_5149_Batch_Path set Path = '{0}' where Batch_Num = 'Batch1'",v.Screen.BatchFilePath!txtBatch1.Text.Trim,v.Local.sSQl)
+		f.ODBC.Connection!conx.Execute(v.Local.sSQl)	
+	f.Intrinsic.Control.EndIf
+	
+	'Batch2
+	f.ODBC.Connection!conx.ExecuteAndReturn("Select * from GCG_5149_Batch_Path Where Batch_num = 'Batch2'",v.Local.sRet)
+	f.Intrinsic.Control.If(v.Local.sRet,=,"")
+		f.Intrinsic.String.Build("Insert into GCG_5149_Batch_Path values('Batch2','{0}')",v.Screen.BatchFilePath!txtBatch2.Text.Trim,v.Local.sSQl)
+		f.ODBC.Connection!conx.Execute(v.Local.sSQl)
+	f.Intrinsic.Control.Else
+		f.Intrinsic.String.Build("Update GCG_5149_Batch_Path set Path = '{0}' where Batch_Num = 'Batch2'",v.Screen.BatchFilePath!txtBatch2.Text.Trim,v.Local.sSQl)
+		f.ODBC.Connection!conx.Execute(v.Local.sSQl)	
+	f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.UI.CloseWaitDialog
+	
+F.Intrinsic.Control.Catch
+	Function.Intrinsic.String.Build("Subroutine Error {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdSave_Click.End
+
+Program.Sub.cmdBrowseBat1_Click.Start
+f.Intrinsic.Control.CallSub("BrowseBatch","BatchTexbox","txtBatch1")
+Program.Sub.cmdBrowseBat1_Click.End
+
+Program.Sub.cmdBrowseBat2_Click.Start
+f.Intrinsic.Control.CallSub("BrowseBatch","BatchTexbox","txtBatch2")
+Program.Sub.cmdBrowseBat2_Click.End
+
+Program.Sub.BrowseBatch.Start
+'Browse and return a file path
+f.Intrinsic.Control.Try
+	v.Local..BulkDeclareString(sError,sFile)
+	Function.Intrinsic.UI.ShowOpenFileDialog("","*.*",8,v.Local.sFile)
+	f.Intrinsic.Control.If(v.Local.sFile.IsCancel,=,False)	
+		gui.BatchFilePath.[v.Args.BatchTexbox].Text(v.Local.sFile)
+	f.Intrinsic.Control.EndIf	
+	
+F.Intrinsic.Control.Catch
+	Function.Intrinsic.String.Build("Subroutine Error {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.BrowseBatch.End
+
+Program.Sub.BatchFilePath_UnLoad.Start
+f.Intrinsic.Control.CallSub("Unload")
+Program.Sub.BatchFilePath_UnLoad.End
+
+Program.Sub.Unload.Start
+f.Intrinsic.Control.Try
+	v.Local.sError.Declare
+
+	F.Intrinsic.Control.If(V.ODBC.conx.State,=,1)
+		F.ODBC.Connection!conx.close
+	F.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	Function.Intrinsic.String.Build("Subroutine Error {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.Unload.End
+
+
+
